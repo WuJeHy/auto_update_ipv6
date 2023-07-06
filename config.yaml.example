@@ -1,0 +1,17 @@
+ddns:
+  endpoint: "alidns.cn-shenzhen.aliyuncs.com"
+  access_key_id: "-" # 阿里云 key id
+  access_key_secret: "-" # 阿里云 key id
+  net_name: "wlp5s0" # 网卡位置
+  update_wait_time: 120 # 轮讯检测时间
+  retry_time: 300 # 重试时间
+  records: # 需要更新的目标
+    -
+      RR: "test"  # 二级域名
+      Type: "AAAA" # 记录值 ipv6 是AAAA
+      RecordId: "---" # 记录id
+
+    -
+      RR: "test2"
+      Type: "AAAA"
+      RecordId: "---"

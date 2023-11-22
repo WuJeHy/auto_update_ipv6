@@ -142,7 +142,7 @@ func updateDnsInfo(logger *zap.Logger, config *Config, client *alidns20150109.Cl
 	//	return
 	//}
 
-	config.LastIpV6Info = selectTargetIpv6.Addr
+	//config.LastIpV6Info = selectTargetIpv6.Addr
 
 	// 更新域名
 
@@ -182,11 +182,12 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 
 		default:
 			// 默认的是本机的
-			if config.LastIpV6Info == addr {
+			if config.LastIpV6Info == addr || addr == "" {
 
-				logger.Debug("没有变化不需要更新")
+				logger.Info("本地ip没有变化不需要更新")
 				return
 			}
+			config.LastIpV6Info = addr
 			// 使用的是本地的ip
 			reqUpdateDomainRecordParams.SetValue(addr)
 		}

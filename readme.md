@@ -9,6 +9,10 @@
 
 使用语言 ： golang 
 
+update 20231122: 
+    因为业务升级搞了个服务器,使用了vm系统,为了管理实例化后的机器对应的ipv6 , 增加了对esxi 的支持
+    可以将指定实例的 地址刷新到 阿里云. 
+
 # 编译 
 
 
@@ -62,6 +66,11 @@ ddns:
   net_name: "wlp5s0" # 网卡位置
   update_wait_time: 120 # 轮讯检测时间
   retry_time: 300 # 重试时间
+  esxi:
+    url: "https://192.168.1.2" # esxi 的 后台地址
+    username: "root"
+    password: "1234678"
+    insecure: true
   records: # 需要更新的目标
     -
       RR: "test"  # 二级域名
@@ -71,7 +80,13 @@ ddns:
     -
       RR: "test2"
       Type: "AAAA"
-      RecordId: "---"	
+      RecordId: "---"
+      WatchType: "local" # 标记为 来源于本机的ipv6 , 不填默认是本机
+    - RR: "test3"
+      Type: "AAAA"
+      RecordId: "----"
+      WatchType: "esxi" # 标记来源于 esxi 的 ipv6
+      VMName: "vm_name" # 对应 esxi 的 实例名
 ```
 
 
@@ -81,7 +96,7 @@ ddns:
 如下直接后台运行
 
 ```shell
-./ipv6_ddns_2023070618-amd64_linux -bg 
+./ipv6_ddns_2023112218-amd64_linux -bg 
 ```
 
 参数信息 默认读取但前路径下的 config.yaml 的配置信息

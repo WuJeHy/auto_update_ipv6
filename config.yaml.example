@@ -5,6 +5,11 @@ ddns:
   net_name: "wlp5s0" # 网卡位置
   update_wait_time: 120 # 轮讯检测时间
   retry_time: 300 # 重试时间
+  esxi:
+    url: "https://192.168.1.2" # esxi 的 后台地址
+    username: "root"
+    password: "1234678"
+    insecure: true
   records: # 需要更新的目标
     -
       RR: "test"  # 二级域名
@@ -15,3 +20,9 @@ ddns:
       RR: "test2"
       Type: "AAAA"
       RecordId: "---"
+      WatchType: "local" # 标记为 来源于本机的ipv6 , 不填默认是本机
+    - RR: "test3"
+      Type: "AAAA"
+      RecordId: "----"
+      WatchType: "esxi" # 标记来源于 esxi 的 ipv6
+      VMName: "vm_name" # 对应 esxi 的 实例名

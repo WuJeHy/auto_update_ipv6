@@ -7,7 +7,6 @@ import (
 	alidns20150109 "github.com/alibabacloud-go/alidns-20150109/v4/client"
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	util "github.com/alibabacloud-go/tea-utils/v2/service"
-
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -117,38 +116,81 @@ func updateDnsInfo(logger *zap.Logger, config *Config, client *alidns20150109.Cl
 
 	if len(ipv6List) == 0 {
 		logger.Info("没有读取到ipv6 信息")
-		return
+
 	}
 
 	selectTargetIpv6 := tools.SelectIpV6TargetInfo(ipv6List)
 
 	if selectTargetIpv6 == nil {
 		logger.Info("没有可用的条件的ipv6")
-		return
 	}
 
-	if config.LastIpV6Info == selectTargetIpv6.Addr {
+	// 读取 esxi 的 数据
+	var getEsxiIpv6 map[string]string
+	esxiConfig := config.Esxi
+	if esxiConfig != nil {
+		var errGetAllEsxiAddrs error
+		getEsxiIpv6, errGetAllEsxiAddrs = tools.GetAllEsxiAddrs(logger, esxiConfig.Url, esxiConfig.Username, esxiConfig.Password, esxiConfig.Insecure)
+		if errGetAllEsxiAddrs != nil {
+			logger.Info("读取 esxi 信息失败", zap.Error(errGetAllEsxiAddrs))
+		}
 
-		logger.Debug("没有变化不需要更新")
-		return
 	}
+	//if config.LastIpV6Info == selectTargetIpv6.Addr {
+	//
+	//	logger.Debug("没有变化不需要更新")
+	//	return
+	//}
 
 	config.LastIpV6Info = selectTargetIpv6.Addr
 
 	// 更新域名
 
-	updateIpv6ToAlidns(logger, config, client, selectTargetIpv6.Addr)
+	updateIpv6ToAlidns(logger, config, client, selectTargetIpv6.Addr, getEsxiIpv6)
 
 }
 
-func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns20150109.Client, addr string) {
+func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns20150109.Client, addr string, esxiMap map[string]string) {
 
-	for _, record := range config.Records {
-
+	updateRecord := func(record *DomainRecordInfo) {
 		reqUpdateDomainRecordParams := &alidns20150109.UpdateDomainRecordRequest{}
 		reqUpdateDomainRecordParams.SetRecordId(record.RecordId)
 		reqUpdateDomainRecordParams.SetRR(record.RR)
-		reqUpdateDomainRecordParams.SetValue(addr)
+
+		switch record.WatchType {
+		case tools.DomainRecordInfoWatchTypeEsxi:
+			// 使用 来自 esxi 的记录
+			//
+			// 匹配记录对应的 ip
+
+			findAddr, isok := esxiMap[record.VMName]
+			if !isok || findAddr == "" {
+				logger.Info("没有读取到对应实例的ip")
+				return
+			}
+
+			// 读取到了 对比记录值
+
+			if record.LastVMAddr == findAddr {
+				logger.Info("ip 没有变化", zap.String("vm name", record.VMName), zap.String("last", record.LastVMAddr), zap.String("current", findAddr))
+				return
+			}
+
+			// 更新最新值
+			record.LastVMAddr = findAddr
+			reqUpdateDomainRecordParams.SetValue(findAddr)
+
+		default:
+			// 默认的是本机的
+			if config.LastIpV6Info == addr {
+
+				logger.Debug("没有变化不需要更新")
+				return
+			}
+			// 使用的是本地的ip
+			reqUpdateDomainRecordParams.SetValue(addr)
+		}
+
 		reqUpdateDomainRecordParams.SetType(record.Type)
 
 		runtimeCtx := &util.RuntimeOptions{}
@@ -188,6 +230,10 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 			}
 		}
 	}
+
+	for _, record := range config.Records {
+		updateRecord(record)
+	}
 	logger.Info("更新结束")
 
 	return
@@ -195,23 +241,35 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 }
 
 type DomainRecordInfo struct {
-	RR       string `json:"RR,omitempty" xml:"RR,omitempty" mapstructure:"RR"`
-	RecordId string `json:"RecordId,omitempty" xml:"RecordId,omitempty" mapstructure:"RecordId"`
-	Type     string `json:"Type,omitempty" xml:"Type,omitempty" mapstructure:"Type"`
+	RR         string `json:"RR,omitempty" xml:"RR,omitempty" mapstructure:"RR"`
+	RecordId   string `json:"RecordId,omitempty" xml:"RecordId,omitempty" mapstructure:"RecordId"`
+	Type       string `json:"Type,omitempty" xml:"Type,omitempty" mapstructure:"Type"`
+	WatchType  string `json:"watch_type" mapstructure:"WatchType"` // 观察类型 local -- 本机  esxi - 远程 esxi
+	VMName     string `json:"vm_name" mapstructure:"VMName"`       // esxi 的时候所属的 实例名
+	LastVMAddr string `json:"-"`
 	//Value    *string `json:"Value,omitempty" xml:"Value,omitempty" mapstructure:"Value"`
 }
 
+type EsxiConfig struct {
+	Url      string `json:"url" mapstructure:"url"`
+	Username string `json:"username" mapstructure:"username"`
+	Password string `json:"password" mapstructure:"password"`
+	Insecure bool   `json:"insecure" mapstructure:"insecure"`
+}
+
 type Config struct {
-	LoggerPath      string              `json:"logger_path"    yaml:"logger_path"    mapstructure:"logger_path"`
-	LoggerLevel     string              `json:"logger_level"   yaml:"logger_level"   mapstructure:"logger_level"`
-	AccessKeyId     string              `json:"accessKeyId,omitempty" xml:"accessKeyId,omitempty" mapstructure:"access_key_id"`
-	AccessKeySecret string              `json:"accessKeySecret,omitempty" xml:"accessKeySecret,omitempty" mapstructure:"access_key_secret"`
-	Endpoint        string              `json:"endpoint" mapstructure:"endpoint"`
-	InterfaceName   string              `json:"net_name" mapstructure:"net_name"`
-	LastIpV6Info    string              `json:"-"`
-	Records         []*DomainRecordInfo `json:"records" mapstructure:"records"`
-	UpdateWaitTime  int                 `json:"update_wait_time" mapstructure:"update_wait_time"`
-	RetryTime       int                 `json:"retry_time" mapstructure:"retry_time"`
+	LoggerPath      string      `json:"logger_path"    yaml:"logger_path"    mapstructure:"logger_path"`
+	LoggerLevel     string      `json:"logger_level"   yaml:"logger_level"   mapstructure:"logger_level"`
+	AccessKeyId     string      `json:"accessKeyId,omitempty" xml:"accessKeyId,omitempty" mapstructure:"access_key_id"`
+	AccessKeySecret string      `json:"accessKeySecret,omitempty" xml:"accessKeySecret,omitempty" mapstructure:"access_key_secret"`
+	Endpoint        string      `json:"endpoint" mapstructure:"endpoint"`
+	InterfaceName   string      `json:"net_name" mapstructure:"net_name"`
+	LastIpV6Info    string      `json:"-"`
+	Esxi            *EsxiConfig `json:"esxi" mapstructure:"esxi"`
+	// 增加
+	Records        []*DomainRecordInfo `json:"records" mapstructure:"records"`
+	UpdateWaitTime int                 `json:"update_wait_time" mapstructure:"update_wait_time"`
+	RetryTime      int                 `json:"retry_time" mapstructure:"retry_time"`
 }
 
 func NewConfig(path string) (*Config, error) {

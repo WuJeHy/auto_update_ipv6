@@ -115,14 +115,13 @@ func updateDnsInfo(logger *zap.Logger, config *Config, client *alidns20150109.Cl
 	ipv6List := tools.GetTargetIPv6Info(config.InterfaceName)
 
 	if len(ipv6List) == 0 {
-		logger.Info("没有读取到ipv6 信息")
-
+		logger.Debug("没有读取到ipv6 信息")
 	}
 
 	selectTargetIpv6 := tools.SelectIpV6TargetInfo(ipv6List)
 
 	if selectTargetIpv6 == nil {
-		logger.Info("没有可用的条件的ipv6")
+		logger.Debug("没有可用的条件的ipv6")
 	}
 
 	// 读取 esxi 的 数据
@@ -132,7 +131,7 @@ func updateDnsInfo(logger *zap.Logger, config *Config, client *alidns20150109.Cl
 		var errGetAllEsxiAddrs error
 		getEsxiIpv6, errGetAllEsxiAddrs = tools.GetAllEsxiAddrs(logger, esxiConfig.Url, esxiConfig.Username, esxiConfig.Password, esxiConfig.Insecure)
 		if errGetAllEsxiAddrs != nil {
-			logger.Info("读取 esxi 信息失败", zap.Error(errGetAllEsxiAddrs))
+			logger.Debug("读取 esxi 信息失败", zap.Error(errGetAllEsxiAddrs))
 		}
 
 	}
@@ -165,14 +164,14 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 
 			findAddr, isok := esxiMap[record.VMName]
 			if !isok || findAddr == "" {
-				logger.Info("没有读取到对应实例的ip")
+				logger.Debug("没有读取到对应实例的ip")
 				return
 			}
 
 			// 读取到了 对比记录值
 
 			if record.LastVMAddr == findAddr {
-				logger.Info("ip 没有变化", zap.String("vm name", record.VMName), zap.String("last", record.LastVMAddr), zap.String("current", findAddr))
+				logger.Debug("ip 没有变化", zap.String("vm name", record.VMName), zap.String("last", record.LastVMAddr), zap.String("current", findAddr))
 				return
 			}
 
@@ -184,7 +183,7 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 			// 默认的是本机的
 			if config.LastIpV6Info == addr || addr == "" {
 
-				logger.Info("本地ip没有变化不需要更新")
+				logger.Debug("本地ip没有变化不需要更新")
 				return
 			}
 			config.LastIpV6Info = addr
@@ -235,7 +234,7 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 	for _, record := range config.Records {
 		updateRecord(record)
 	}
-	logger.Info("更新结束")
+	//logger.Info("更新结束")
 
 	return
 

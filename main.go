@@ -110,6 +110,10 @@ func runMainApp(logger *zap.Logger, config *Config) {
 }
 
 func updateDnsInfo(logger *zap.Logger, config *Config, client *alidns20150109.Client) {
+
+	// 捕捉异常
+	defer tools.HandlePanic(logger, "updateDnsInfo")
+
 	// 解析本地的ip 信息
 
 	ipv6List := tools.GetTargetIPv6Info(config.InterfaceName)
@@ -152,6 +156,9 @@ func updateDnsInfo(logger *zap.Logger, config *Config, client *alidns20150109.Cl
 func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns20150109.Client, addr string, esxiMap map[string]string) {
 
 	updateRecord := func(record *DomainRecordInfo) {
+		// 捕捉异常
+		// 单次错误不至于导致整体错误
+		defer tools.HandlePanic(logger, "updateRecord")
 		reqUpdateDomainRecordParams := &alidns20150109.UpdateDomainRecordRequest{}
 		reqUpdateDomainRecordParams.SetRecordId(record.RecordId)
 		reqUpdateDomainRecordParams.SetRR(record.RR)
@@ -161,6 +168,11 @@ func updateIpv6ToAlidns(logger *zap.Logger, config *Config, client *alidns201501
 			// 使用 来自 esxi 的记录
 			//
 			// 匹配记录对应的 ip
+
+			// note 如果 esxi 离线的时候 esxiMap 则空 会导致程序崩溃
+			if esxiMap == nil {
+				return
+			}
 
 			findAddr, isok := esxiMap[record.VMName]
 			if !isok || findAddr == "" {

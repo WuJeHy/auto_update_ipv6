@@ -1,28 +1,27 @@
-ddns:
-  endpoint: "alidns.cn-shenzhen.aliyuncs.com"
-  access_key_id: "-" # 阿里云 key id
-  access_key_secret: "-" # 阿里云 key id
-  net_name: "wlp5s0" # 网卡位置
-  update_wait_time: 120 # 轮讯检测时间
-  retry_time: 300 # 重试时间
-  esxi:
-    url: "https://192.168.1.2" # esxi 的 后台地址
-    username: "root"
-    password: "1234678"
-    insecure: true
-  records: # 需要更新的目标
-    -
-      RR: "test"  # 二级域名
-      Type: "AAAA" # 记录值 ipv6 是AAAA
-      RecordId: "---" # 记录id
+#日志配置
+#默认  logs 目录  info等级
+logger:
+  logger_path: logs
+  logger_level: info
 
-    -
-      RR: "test2"
-      Type: "AAAA"
-      RecordId: "---"
-      WatchType: "local" # 标记为 来源于本机的ipv6 , 不填默认是本机
-    - RR: "test3"
-      Type: "AAAA"
-      RecordId: "----"
-      WatchType: "esxi" # 标记来源于 esxi 的 ipv6
-      VMName: "vm_name" # 对应 esxi 的 实例名
+aliyun:
+  endpoint: "alidns.xxxxxx.aliyuncs.com"
+  access_key_id: "aaaaa"
+  access_key_secret: "bbbb"
+app:
+
+  update_wait_time: 120
+  net_name: "wlp5s0" # ip addr 需要查询ipv6 的接口
+# 设置 记录储存的 配置文件 支持 yaml json
+# 空则默认 record.yaml 
+records_file: "my_record.yaml"
+
+# 设置 unix sock 路径
+# 空则 默认 当前路径 pio_grpc_ddns.sock
+unix_sock: "pio_grpc_ddns.sock"
+# esxi 相关配置
+esxi:
+  url: "https://192.168.1.2" # esxi 的 后台地址
+  username: "root"
+  password: "1234678"
+  insecure: true

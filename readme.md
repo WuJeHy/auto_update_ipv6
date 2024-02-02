@@ -13,38 +13,22 @@ update 20231122:
     因为业务升级搞了个服务器,使用了vm系统,为了管理实例化后的机器对应的ipv6 , 增加了对esxi 的支持
     可以将指定实例的 地址刷新到 阿里云. 
 
+update 20240202:
+    因为一些原因 旧版本发现了一些bug 以及一些 管理麻烦的问题 
+    于是整了个交互页面, 本来想 做 tui 来管理, 然后太麻烦了, 直接用命令吧 , 简单粗暴
+    
+
 # 编译 
-
-
-linux 静态编译
-
-```shell
-make build_ipv6_app
-
-```
+ 
 
 ubuntu 22.10 
 ```shell
-make build_ipv6_app_ubuntu
+make build_ipv6_mgr_ubuntu
 ```
 
+ 
 
-以上编译区别是ldd 是否有外部依赖
-
-```text
-
-(base) ➜  auto_update_ipv6 git:(master) ✗ ldd build/ipv6_ddns_2023070618-amd64_*
-build/ipv6_ddns_2023070618-amd64_linux:
-        not a dynamic executable
-build/ipv6_ddns_2023070618-amd64_ubuntu:
-        linux-vdso.so.1 (0x00007ffdaa7dd000)
-        libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007fb0e320e000)
-        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fb0e2e00000)
-        /lib64/ld-linux-x86-64.so.2 (0x00007fb0e323a000)
-```
-
-
-## 高级
+## 高级(旧)
 
 核心逻思路
 
@@ -54,66 +38,118 @@ build/ipv6_ddns_2023070618-amd64_ubuntu:
 
 核心代码在  [GetTargetIPv6Info](tools/ipv6.go ) 方法
 
+## 设计思路
+    首先有一个管理器 进行 配置管理 
+    然后有个定时器 定期探测 
+    然后 有个 rpc 进行外部管理
+    因为 不想做鉴权 , 所以直接使用  unix socket 默认同级目录访问
+    然后提供 一个 参数解析 实现命令简单交互 
 
 
 ### 配置：
 
-```yaml
-ddns:
-  endpoint: "alidns.cn-shenzhen.aliyuncs.com"
-  access_key_id: "-" # 阿里云 key id
-  access_key_secret: "-" # 阿里云 key id
-  net_name: "wlp5s0" # 网卡位置
-  update_wait_time: 120 # 轮讯检测时间
-  retry_time: 300 # 重试时间
-  esxi:
-    url: "https://192.168.1.2" # esxi 的 后台地址
-    username: "root"
-    password: "1234678"
-    insecure: true
-  records: # 需要更新的目标
-    -
-      RR: "test"  # 二级域名
-      Type: "AAAA" # 记录值 ipv6 是AAAA
-      RecordId: "---" # 记录id
+新版本有两个配置 
+一个系统配置 
+[config.yaml](config.yaml)
 
-    -
-      RR: "test2"
-      Type: "AAAA"
-      RecordId: "---"
-      WatchType: "local" # 标记为 来源于本机的ipv6 , 不填默认是本机
-    - RR: "test3"
-      Type: "AAAA"
-      RecordId: "----"
-      WatchType: "esxi" # 标记来源于 esxi 的 ipv6
-      VMName: "vm_name" # 对应 esxi 的 实例名
+详细配置文件: 
+[config.go](manager%2Fconfig.go)
+
+的 ConfigFile 结构
+
+```yaml
+#日志配置
+#默认  logs 目录  info等级
+logger:
+  logger_path: logs
+  logger_level: info
+
+aliyun:
+  endpoint: "alidns.xxxxxx.aliyuncs.com"
+  access_key_id: "aaaaa"
+  access_key_secret: "bbbb"
+app:
+
+  update_wait_time: 120
+  net_name: "wlp5s0" # ip addr 需要查询ipv6 的接口
+# 设置 记录储存的 配置文件 支持 yaml json
+# 空则默认 record.yaml 
+records_file: "my_record.yaml"
+
+# 设置 unix sock 路径
+# 空则 默认 当前路径 pio_grpc_ddns.sock
+unix_sock: "pio_grpc_ddns.sock"
+# esxi 相关配置
+esxi:
+  url: "https://192.168.1.2" # esxi 的 后台地址
+  username: "root"
+  password: "1234678"
+  insecure: true
 ```
 
 
 
 ### 运行
 
-如下直接后台运行
+注意 : 简单粗暴 执行操作默认 会后台启动 实例 
 
-```shell
-./ipv6_ddns_2023112218-amd64_linux -bg 
-```
+提示: 配置文件不会自动刷新 ,需要 `-store` 参数完成 , 并且 `-store` 可以并行处理
+
+修改完需要保存的时候一定要 `-store`
+修改完需要保存的时候一定要 `-store`
+修改完需要保存的时候一定要 `-store`
 
 参数信息 默认读取但前路径下的 config.yaml 的配置信息
 
-```
-./build/ipv6_ddns_2023070618-amd64_linux -h
-Usage of ./build/ipv6_ddns_2023070618-amd64_linux:
+日志默认按小时 保存到 logs 下
+
+```shell
+
+./mgr_2024020219-amd64_ubuntu -h           
+Usage of ./mgr_2024020219-amd64_ubuntu:
+  -add
+        添加一个记录
   -bg
         后台运行
   -c string
         配置文件 (default "./config.yaml")
+  -del
+        删除一个记录
+  -logger_level
+        更新日志等级
+  -reload
+        重载记录配置
+  -show
+        查看记录
   -stdout string
-        stdout 重定向 (default "auto_dns.out")
+        stdout 重定向 (default "mgr.out")
+  -store
+        保存记录配置
+  -ui
+        启动ui
+  -unix string
+        unix sock 文件 路径
+  -update
+        更新记录
 
 ```
 
-日志默认按小时 保存到 logs 下
+```shell
+./mgr_2024020219-amd64_ubuntu -show        
+2024/02/02 19:30:05 新任务ID: 3342645
+2024/02/02 19:30:06 链接成功
+序号:             RecordID          RR      Type               WatchType        VMName
+-----------------------------------------------------------------------------------------------
+0000:    ----------------          xx      AAAA          WatchTypeLocal
+0001:    ----------------         xxx      AAAA          WatchTypeLocal
+0002:    ----------------         xxx      AAAA          WatchTypeLocal
+-----------------------------------------------------------------------------------------------
+记录总数: 3
+
+```
+
+
+其他, 略
 
 
 

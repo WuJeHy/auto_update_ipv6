@@ -1,4 +1,4 @@
-package control
+package manager
 
 import (
 	"auto_update_ipv6/api"
@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"go.uber.org/zap"
+	"time"
 )
 
 func (m *Manager) LocalConfigFile(ctx context.Context, req *api.LocalConfigFileReq) (resp *api.LocalConfigFileResp, err error) {
@@ -249,5 +250,39 @@ func (m *Manager) ListRecord(ctx context.Context, req *api.ListRecordReq) (resp 
 		}
 	}
 
+	return
+}
+
+// Reset
+// reset 包括 重载配置文件
+// 重载记录文件
+func (m *Manager) Reset(ctx context.Context, req *api.ResetReq) (resp *api.ResetResp, err error) {
+
+	// 读取配置文件
+
+	resp = new(api.ResetResp)
+
+	go func() {
+		time.Sleep(time.Second)
+		m.Close()
+	}()
+
+	return
+}
+
+func (m *Manager) UpdateLoggerLevel(ctx context.Context, req *api.UpdateLoggerLevelReq) (resp *api.UpdateLoggerLevelResp, err error) {
+	switch req.Level {
+	case api.UpdateLoggerLevelReq_Debug:
+		*m.LoggerLevel = zap.DebugLevel
+	case api.UpdateLoggerLevelReq_Info:
+		*m.LoggerLevel = zap.InfoLevel
+	case api.UpdateLoggerLevelReq_Warning:
+		*m.LoggerLevel = zap.WarnLevel
+	case api.UpdateLoggerLevelReq_Error:
+		*m.LoggerLevel = zap.ErrorLevel
+
+	}
+
+	resp = &api.UpdateLoggerLevelResp{}
 	return
 }

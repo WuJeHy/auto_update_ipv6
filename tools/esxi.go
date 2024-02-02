@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"github.com/vmware/govmomi/session/cache"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
@@ -20,7 +21,18 @@ func GetAllEsxiAddrs(logger *zap.Logger, Url string,
 	Insecure bool) (info map[string]string, err error) {
 	//
 
+	defer func() {
+		if info == nil {
+			err = errors.New("not found esxi info ")
+		}
+	}()
+	defer HandlePanic(logger, "GetAllEsxiAddrs")
 	info = make(map[string]string, 8)
+
+	if Url == "" {
+
+		return
+	}
 
 	// 可以读取配置
 
@@ -52,39 +64,43 @@ func GetAllEsxiAddrs(logger *zap.Logger, Url string,
 		for _, vm := range vms {
 			//fmt.Printf("%s: %s\n", vm.Summary.Config.Name, vm.Summary.Config.GuestFullName)
 
-			vmName := vm.Summary.Config.Name
+			// todo 这里会崩
 
-			for _, netInfo := range vm.Guest.Net {
-				for _, addrStr := range netInfo.IpAddress {
-					//fmt.Println(i, index, addr)
-					// 判断 ip 是否符合要求
-					// todo 前5个字符是 2409: 的是移动的
+			tryFunc(logger, func() {
+				vmName := vm.Summary.Config.Name
+				for _, netInfo := range vm.Guest.Net {
+					for _, addrStr := range netInfo.IpAddress {
+						//fmt.Println(i, index, addr)
+						// 判断 ip 是否符合要求
+						// todo 前5个字符是 2409: 的是移动的
 
-					ipAddrInfo, errParseAddr := netip.ParseAddr(addrStr)
-					if errParseAddr != nil {
-						continue
+						ipAddrInfo, errParseAddr := netip.ParseAddr(addrStr)
+						if errParseAddr != nil {
+							continue
+						}
+						// 判断是不是 v6
+
+						if !ipAddrInfo.Is6() {
+							continue
+						}
+
+						// v6 的ip
+
+						// 判断开头
+
+						targetIpv6String := ipAddrInfo.String()
+
+						headerSub := targetIpv6String[:5]
+
+						if headerSub == "2409:" {
+							// 我们的目标 ipv6
+							info[vmName] = targetIpv6String
+						}
+
 					}
-					// 判断是不是 v6
-
-					if !ipAddrInfo.Is6() {
-						continue
-					}
-
-					// v6 的ip
-
-					// 判断开头
-
-					targetIpv6String := ipAddrInfo.String()
-
-					headerSub := targetIpv6String[:5]
-
-					if headerSub == "2409:" {
-						// 我们的目标 ipv6
-						info[vmName] = targetIpv6String
-					}
-
 				}
-			}
+			})
+
 		}
 		return nil
 	}
@@ -98,7 +114,10 @@ func GetAllEsxiAddrs(logger *zap.Logger, Url string,
 
 }
 
-//
+func tryFunc(logger *zap.Logger, f func()) {
+	defer HandlePanic(logger, "tryFunc")
+	f()
+}
 
 // NewClient creates a vim25.Client for use in the examples
 func NewClient(ctx context.Context, url, username, password string, insecureFlag bool) (*vim25.Client, error) {

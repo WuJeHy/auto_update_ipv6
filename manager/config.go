@@ -1,4 +1,4 @@
-package control
+package manager
 
 // 配置文件
 
@@ -36,8 +36,10 @@ type AliyunConfig struct {
 }
 
 type AppConfig struct {
-	UpdateWaitTime int `json:"update_wait_time" mapstructure:"update_wait_time"`
-	RetryTime      int `json:"retry_time" mapstructure:"retry_time"`
+	UpdateWaitTime int    `json:"update_wait_time" mapstructure:"update_wait_time"`
+	RetryTime      int    `json:"retry_time" mapstructure:"retry_time"`
+	InterfaceName  string `json:"net_name" mapstructure:"net_name"`
+	RpcPort        int    `json:"rpc_port" mapstructure:"rpc_port"`
 }
 
 type AuthConfig struct {

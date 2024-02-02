@@ -1,0 +1,113 @@
+syntax = "proto3";
+//import "google/protobuf/any.proto";
+
+package api;
+
+option go_package = "api/";
+
+
+service Manager {
+  rpc LocalConfigFile(LocalConfigFileReq) returns (LocalConfigFileResp) ;
+  rpc WriteConfigFile(WriteConfigFileReq) returns (WriteConfigFileResp) ;
+  rpc AddRecord(RecordInfo) returns (AddRecordResp) ;
+  rpc DelRecord(DelRecordReq) returns (DelRecordResp) ;
+  rpc EditRecord(EditRecordReq) returns (EditRecordResp) ;
+  rpc ListRecord(ListRecordReq) returns (ListRecordResp) ;
+  rpc Reset(ResetReq) returns (ResetResp);
+  rpc UpdateLoggerLevel(UpdateLoggerLevelReq ) returns (UpdateLoggerLevelResp);
+  //  rpc UpdateApiKey(UpdateApiKeyReq) returns (UpdateApiKeyResp) ;
+  //  rpc UpdateEsxiConfig(UpdateEsxiConfigReq) returns (UpdateEsxiConfigResp) ;
+  //  rpc UpdateAppConfig(UpdateAppConfigReq) returns (UpdateAppConfigResp) ;
+  //  rpc GetConfig(GetConfigReq) returns (GetConfigResp) ;
+
+}
+
+message UpdateLoggerLevelReq {
+  enum Level {
+    Debug = 0 ;
+    Info = 1 ;
+    Warning = 2 ;
+    Error = 3 ;
+
+  }
+  Level level = 1;
+}
+
+message UpdateLoggerLevelResp {
+
+}
+
+message ResetReq{
+
+}
+
+message ResetResp{
+
+}
+
+message  LocalConfigFileReq {
+  bool Preview = 1 ;
+}
+message  LocalConfigFileResp {
+
+}
+
+message  WriteConfigFileReq {
+  string RecordFile = 1 ;
+}
+message  WriteConfigFileResp {}
+
+enum RecordWatchType {
+  WatchTypeUnknown = 0 ;
+  WatchTypeLocal = 1 ;
+  WatchTypeEsxi = 2 ;
+
+}
+
+message RecordInfo {
+  string RR = 1 ;
+  string RecordId = 2 ;
+  string Type = 3 ;
+  RecordWatchType WatchType = 4 ;
+  string VMName = 5 ;
+}
+
+
+message  AddRecordResp {}
+
+message  DelRecordReq {
+  string RecordId = 1 ;
+}
+message  DelRecordResp {}
+
+message  EditRecordReq {
+  string RecordId = 1 ;
+  optional string RR = 2 ;
+  optional string Type = 3 ;
+  optional RecordWatchType WatchType = 4 ;
+  optional string VMName = 5 ;
+}
+message  EditRecordResp {}
+
+message  ListRecordReq {
+  int64 Limit = 1 ;
+  int64 Offset = 2 ;
+  optional RecordWatchType WatchType = 3 ;
+
+}
+message  ListRecordResp {
+  int64 Count = 1 ;
+  repeated RecordInfo records = 2 ;
+}
+
+message  UpdateApiKeyReq {}
+message  UpdateApiKeyResp {}
+
+message  UpdateEsxiConfigReq {}
+message  UpdateEsxiConfigResp {}
+
+message  UpdateAppConfigReq {}
+message  UpdateAppConfigResp {}
+
+message  GetConfigReq {}
+message  GetConfigResp {}

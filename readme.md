@@ -66,8 +66,8 @@ logger:
 
 aliyun:
   endpoint: "alidns.xxxxxx.aliyuncs.com"
-  access_key_id: "aaaaa"
-  access_key_secret: "bbbb"
+  access_key_id: "-" # 阿里云 key id
+  access_key_secret: "-" # 阿里云 key id
 app:
 
   update_wait_time: 120
